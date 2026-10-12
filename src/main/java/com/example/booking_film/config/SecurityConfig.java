@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/payments/vnpay/callback").permitAll()
                         .requestMatchers(HttpMethod.GET,
@@ -70,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, ADMIN_MANAGED_RESOURCES).hasAuthority("SCOPE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, ADMIN_MANAGED_RESOURCES).hasAuthority("SCOPE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, ADMIN_MANAGED_RESOURCES).hasAuthority("SCOPE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/seats/hold").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer((oauth2) -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder)));

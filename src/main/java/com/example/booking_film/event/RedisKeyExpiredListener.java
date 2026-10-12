@@ -1,4 +1,4 @@
-package com.example.booking_film.event.redis;
+package com.example.booking_film.event;
 
 import com.example.booking_film.customexception.ResourceNotFoundException;
 import com.example.booking_film.entity.Booking;

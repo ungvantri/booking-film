@@ -52,5 +52,4 @@ public class AuthController {
                 .data(loginResponse)
                 .build();
     }
-
 }
