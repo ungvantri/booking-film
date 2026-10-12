@@ -8,7 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.listener.KeyExpirationEventMessageListener;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+@Component
 public class RedisKeyExpiredListener extends KeyExpirationEventMessageListener {
     @Autowired
     private BookingRepository bookingRepository;
@@ -18,11 +21,16 @@ public class RedisKeyExpiredListener extends KeyExpirationEventMessageListener {
     }
 
     @Override
+    @Transactional
     public void onMessage(Message message, byte[] pattern) {
         String expiredKey = message.toString();
+        if (!expiredKey.startsWith("booking_timeout:")) {
+            return;
+        }
         String[] parts = expiredKey.split(":");
         String bookingCode = parts[parts.length - 1];
         Booking booking = bookingRepository.findByBookingCode(bookingCode).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng"));
         booking.setStatus(BookingStatus.EXPIRED);
+        bookingRepository.save(booking);
     }
 }

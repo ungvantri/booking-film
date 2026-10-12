@@ -19,6 +19,7 @@ import com.example.booking_film.util.HmacUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -68,6 +69,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private SeatShowtimeRepository seatShowtimeRepository;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public PaymentResponse createPayment(String email, PaymentRequest request, String ipAddress) {
@@ -181,6 +185,7 @@ public class PaymentServiceImpl implements PaymentService {
             seatShowtime.setStatus(SeatStatus.BOOKED);
             seatShowtimeRepository.save(seatShowtime);
         }
+        redisTemplate.delete("booking_timeout:" + booking.getBookingCode());
         bookingRepository.save(booking);
         paymentRepository.save(payment);
     }

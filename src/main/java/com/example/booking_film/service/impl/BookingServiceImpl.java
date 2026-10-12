@@ -20,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -65,6 +66,7 @@ public class BookingServiceImpl implements BookingService {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Override
+    @Transactional
     public BookingResponse createBooking(BookingRequest request, String email) {
         // Lấy thông tin người dùng
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
@@ -86,22 +88,18 @@ public class BookingServiceImpl implements BookingService {
 
         // Kiểm tra tính hợp lệ của ghế được đặt
         if (lockedSeats.size() != request.getSeatIds().size()) {
-            throw new ResourceNotFoundException("Một số ghế không tồn tại trong suất chiếu này");
+            throw new ResourceNotFoundException("Một số ghế khách hàng đặt không hợp lệ trong suất chiếu này");
         }
         for (SeatShowtime seatShowtime : lockedSeats) {
-            if (!seatShowtime.getStatus().equals(SeatStatus.AVAILABLE)) {
-                throw new ConflictException("Ghế có id: " + seatShowtime.getSeat().getId() + "  đã có người đặt hoặc đang giữ!");
-            }
-            Object user_id = redisTemplate.opsForValue().get("seat_hold:" + request.getShowtimeId() + ":" + seatShowtime.getSeat().getId());
-            if(user_id != null) {
+            Object userId = redisTemplate.opsForValue().get("seat_hold:" + request.getShowtimeId() + ":" + seatShowtime.getSeat().getId());
+            if(userId != null) {
                 throw new ConflictException("Ghế có id: " + seatShowtime.getSeat().getId() + " đang bị tạm thời bị giữ bởi một khách hàng khác");
             }
         }
 
-        BigDecimal price = showtime.getSeatShowtimes().stream()
-                .filter(item -> request.getSeatIds().contains(item.getSeat().getId()))
-                .map(item -> item.getPrice())
-                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
+        BigDecimal price = lockedSeats.stream()
+                .map(SeatShowtime::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (promotionDTO != null) {
             if (promotionDTO.getDiscountType().equals(DiscountType.PERCENT)) {
                 BigDecimal discountValue = promotionDTO.getDiscountValue();
@@ -111,6 +109,7 @@ public class BookingServiceImpl implements BookingService {
                 price = price.subtract(promotionDTO.getDiscountValue());
             }
         }
+
         Booking booking = Booking.builder()
                 .bookingCode(UUID.randomUUID().toString())
                 .user(user)
@@ -120,11 +119,11 @@ public class BookingServiceImpl implements BookingService {
                 .status(BookingStatus.PENDING)
                 .build();
 
-        List<BookingSeat> bookingSeats = request.getSeatIds().stream()
+        List<BookingSeat> bookingSeats = lockedSeats.stream()
                 .map(item -> BookingSeat.builder()
                         .booking(booking)
-                        .seat(seatRepository.findById(item).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ghế có id: " + item)))
-                        .price(seatShowtimeRepository.findByShowtimeIdAndSeatId(request.getShowtimeId(), item).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin showtime hợp lệ")).getPrice())
+                        .seat(item.getSeat())
+                        .price(item.getPrice())
                         .build())
                 .toList();
 
@@ -132,8 +131,10 @@ public class BookingServiceImpl implements BookingService {
 
         // Lưu các ghế tạm thời đang được hold trong 15 phút
         for(Long id : request.getSeatIds()) {
-            redisTemplate.opsForValue().set("seat_hold:" + request.getShowtimeId() + ":" + id + ":" + booking.getBookingCode(), user.getId(), 900, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set("seat_hold:" + request.getShowtimeId() + ":" + id, user.getId(), 900, TimeUnit.SECONDS);
         }
+
+        redisTemplate.opsForValue().set("booking_timeout:" + booking.getBookingCode(), "1", 900, TimeUnit.SECONDS);
 
         Booking saved = bookingRepository.save(booking);
 
