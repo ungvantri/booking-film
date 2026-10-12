@@ -9,14 +9,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class RateLimitingService {
-
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
     public ConsumptionProbe tryConsume(String ip, RateLimitPlan plan) {
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> Bucket.builder()
+        String key = ip + ":" + plan.name();
+        Bucket bucket = buckets.computeIfAbsent(key, k -> Bucket.builder()
                 .addLimit(plan.toBandwidth())
                 .build());
-
         return bucket.tryConsumeAndReturnRemaining(1);
     }
 }
