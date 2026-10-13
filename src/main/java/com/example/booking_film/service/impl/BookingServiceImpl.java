@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -150,14 +151,15 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public PageResponse<BookingResponse> getMyBookings(String email, int page, int size) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
-        Pageable pageable = PageRequest.of(page, size);
+        Sort sort = Sort.by("bookingTime").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
         Page<Booking> pages = bookingRepository.findByUserId(user.getId(), pageable);
         List<BookingResponse> bookingResponses = new ArrayList<>();
         for (Booking booking : pages.getContent()) {
             BookingResponse bookingResponse = bookingMapper.toDTO(booking);
             bookingResponse.setShowtime(showtimeMapper.toDto(booking.getShowtime()));
             bookingResponse.setMovie(movieMapper.toDto(booking.getShowtime().getMovie()));
-            bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(item -> item.getSeat()).toList()));
+            bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(BookingSeat::getSeat).toList()));
             bookingResponses.add(bookingResponse);
         }
         return PageResponse.<BookingResponse>builder()

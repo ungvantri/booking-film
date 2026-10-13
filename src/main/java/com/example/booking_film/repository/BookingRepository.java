@@ -14,7 +14,13 @@ import java.util.Optional;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
     boolean existsByShowtimeId(Long id);
 
-    Page<Booking> findByUserId(Long id, Pageable pageable);
+    @Query(value = "SELECT b FROM Booking b " +
+            "JOIN FETCH b.showtime s " +
+            "JOIN FETCH s.movie m " +
+            "JOIN FETCH s.room r " +
+            "WHERE b.user.id = :userId",
+            countQuery = "SELECT COUNT(b) FROM Booking b WHERE b.user.id = :userId")
+    Page<Booking> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
     boolean existsByIdAndUserId(Long id, Long id1);
 

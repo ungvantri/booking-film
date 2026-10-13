@@ -3,6 +3,7 @@ package com.example.booking_film.entity;
 import com.example.booking_film.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     private BookingStatus status;
 
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "booking", cascade = CascadeType.PERSIST, orphanRemoval = true)
     List<BookingSeat> bookingSeats;
 
