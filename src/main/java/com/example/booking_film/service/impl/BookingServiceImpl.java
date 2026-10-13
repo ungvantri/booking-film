@@ -177,16 +177,15 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponse getBookingById(String email, Long id) {
         Booking booking = bookingRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng có id: " + id));
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+        boolean isAdminOrStaff = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
+        boolean isOwner = booking.getUser().getId().equals(user.getId());
+        if (!isAdminOrStaff && !isOwner) {
+            throw new ForbiddenException("Không có quyền truy cập thông tin vé này");
+        }
         BookingResponse bookingResponse = bookingMapper.toDTO(booking);
         bookingResponse.setShowtime(showtimeMapper.toDto(booking.getShowtime()));
         bookingResponse.setMovie(movieMapper.toDto(booking.getShowtime().getMovie()));
-        bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(item -> item.getSeat()).toList()));
-        if (user.getRole().equals(Role.ADMIN) || user.getRole().equals(Role.STAFF)) {
-            return bookingResponse;
-        }
-        if (!bookingRepository.existsByIdAndUserId(id, user.getId())) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
+        bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(BookingSeat::getSeat).toList()));
         return bookingResponse;
     }
 
