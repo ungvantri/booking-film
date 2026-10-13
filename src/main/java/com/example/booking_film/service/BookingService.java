@@ -16,7 +16,7 @@ public interface BookingService {
 
     BookingResponse getBookingByCode(String email, String bookingCode);
 
-    void cancelBooking(Long id);
+    void cancelBooking(String email, Long id);
 
     PageResponse<BookingResponse> getAllBookings(String email, BookingStatus status, Long userId, LocalDate date, int page, int size);
 }

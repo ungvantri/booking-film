@@ -205,17 +205,38 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public void cancelBooking(Long id) {
+    @Transactional
+    public void cancelBooking(String email, Long id) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         Booking booking = bookingRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng có id:" + id));
-        List<Long> idSeat = booking.getBookingSeats().stream().map(item -> item.getSeat().getId()).toList();
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new ConflictException("Vé này đã được hủy từ trước!");
+        }
+        if (booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new ConflictException("Vé này đã hết hạn giữ chỗ, không thể hủy!");
+        }
+        boolean isAdminOrStaff = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
+        boolean isOwner = booking.getUser().getId().equals(user.getId());
+        if (isAdminOrStaff) {
+            if (booking.getShowtime().getStartTime().isBefore(LocalDateTime.now())) {
+                throw new ConflictException("Suất chiếu đã bắt đầu hoặc kết thúc, không thể hủy vé!");
+            }
+        } else if (isOwner) {
+            if (booking.getStatus() != BookingStatus.PENDING) {
+                throw new ForbiddenException("Vé đã thanh toán thành công, vui lòng liên hệ nhân viên tại quầy để được hỗ trợ hủy/hoàn vé!");
+            }
+        } else {
+            throw new ForbiddenException("Bạn không có quyền hủy vé này!");
+        }
         Long idShowtime = booking.getShowtime().getId();
-        for(Long item : idSeat) {
-            SeatShowtime seatShowtime = seatShowtimeRepository.findByShowtimeIdAndSeatId(idShowtime, item).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng"));
+        for (BookingSeat bookingSeat : booking.getBookingSeats()) {
+            Long seatId = bookingSeat.getSeat().getId();
+            redisTemplate.delete("seat_hold:" + idShowtime + ":" + seatId);
+            SeatShowtime seatShowtime = seatShowtimeRepository.findByShowtimeIdAndSeatId(idShowtime, seatId).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng"));
             seatShowtime.setStatus(SeatStatus.AVAILABLE);
-            redisTemplate.delete("seat_hold:" +idShowtime + ":" + item);
             seatShowtimeRepository.save(seatShowtime);
         }
-        booking.getBookingSeats().clear();
+        redisTemplate.delete("booking_timeout:" + booking.getBookingCode());
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
     }

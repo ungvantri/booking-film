@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/payments").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/bookings").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/bookings/code/*").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")
-                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/cancel").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")
+                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/cancel").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/bookings/*/checkin").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/payments/*").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/rooms/**").hasAnyAuthority("SCOPE_ADMIN", "SCOPE_STAFF")

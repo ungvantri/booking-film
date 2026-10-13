@@ -70,8 +70,9 @@ public class BookingController {
     }
 
     @PutMapping("/{id}/cancel")
-    public ApiResponse<Void> cancelBooking(@PathVariable Long id) {
-        bookingService.cancelBooking(id);
+    public ApiResponse<Void> cancelBooking(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getSubject();
+        bookingService.cancelBooking(email, id);
         return ApiResponse.<Void>builder()
                 .success(true)
                 .message("Hủy vé thành công")
