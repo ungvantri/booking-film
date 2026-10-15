@@ -3,6 +3,7 @@ package com.example.booking_film.entity;
 import com.example.booking_film.enums.ShowtimeStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "showtimes")
+@BatchSize(size=20)
 public class Showtime {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

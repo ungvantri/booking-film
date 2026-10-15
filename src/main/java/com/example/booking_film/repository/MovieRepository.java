@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface MovieRepository extends JpaRepository<Movie, Long> {
-    @Query("SELECT m FROM Movie m WHERE (m.title = :search OR :search IS NULL) AND (m.status = :status OR :status IS NULL)")
+    @Query("SELECT m FROM Movie m WHERE (:search IS NULL OR LOWER(m.title) LIKE LOWER(CONCAT('%', :search, '%'))) AND (m.status = :status OR :status IS NULL)")
     Page<Movie> findByFilters(@Param("search") String search, @Param("status") MovieStatus status, Pageable pageable);
 
     Page<Movie> findByStatus(MovieStatus status, Pageable pageable);

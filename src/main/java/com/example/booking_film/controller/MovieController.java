@@ -120,7 +120,7 @@ public class MovieController {
                 .build();
     }
 
-    @PutMapping("{id}/poster")
+    @PutMapping("/{id}/poster")
     public ApiResponse<String> uploadPoster(@PathVariable Long id, @RequestParam MultipartFile file) {
         String url = movieService.uploadPoster(id, file);
         return ApiResponse.<String>builder()
