@@ -3,6 +3,7 @@ package com.example.booking_film.controller;
 import com.example.booking_film.dto.response.ApiResponse;
 import com.example.booking_film.dto.response.CinemaDTO;
 import com.example.booking_film.service.CinemaService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,7 +36,7 @@ public class CinemaController {
     }
 
     @PostMapping
-    public ApiResponse<CinemaDTO> createCinema(@RequestBody CinemaDTO request) {
+    public ApiResponse<CinemaDTO> createCinema(@Valid @RequestBody CinemaDTO request) {
         CinemaDTO cinema = cinemaService.createCinema(request);
         return ApiResponse.<CinemaDTO>builder()
                 .success(true)
@@ -45,7 +46,7 @@ public class CinemaController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<CinemaDTO> updateCinema(@PathVariable Long id, @RequestBody CinemaDTO request) {
+    public ApiResponse<CinemaDTO> updateCinema(@PathVariable Long id, @Valid @RequestBody CinemaDTO request) {
         CinemaDTO cinema = cinemaService.updateCinema(request, id);
         return ApiResponse.<CinemaDTO>builder()
                 .success(true)

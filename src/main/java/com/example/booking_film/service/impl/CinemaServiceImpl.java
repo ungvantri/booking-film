@@ -1,6 +1,7 @@
 package com.example.booking_film.service.impl;
 
 import com.example.booking_film.customexception.BadRequestException;
+import com.example.booking_film.customexception.ResourceInUseException;
 import com.example.booking_film.customexception.ResourceNotFoundException;
 import com.example.booking_film.dto.response.CinemaDTO;
 import com.example.booking_film.entity.Cinema;
@@ -13,6 +14,7 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -36,13 +38,15 @@ public class CinemaServiceImpl implements CinemaService {
     @Override
     @Cacheable(value = "cinema_detail", key = "#id")
     public CinemaDTO getCinemaById(Long id) {
-        return cinemaMapper.toDTO(cinemaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phim với id: " + id)));
+        return cinemaMapper.toDTO(cinemaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy rạp chiếu phim với id: " + id)));
     }
 
     @Override
     @CacheEvict(value = "cinemas", allEntries = true)
+    @Transactional
     public CinemaDTO createCinema(CinemaDTO request) {
         Cinema cinema = cinemaMapper.toEntity(request);
+        cinema.setId(null);
         Cinema saved = cinemaRepository.save(cinema);
         return cinemaMapper.toDTO(saved);
     }
@@ -52,12 +56,14 @@ public class CinemaServiceImpl implements CinemaService {
             put = @CachePut(value = "cinema_detail", key = "#id"),
             evict = @CacheEvict(value = "cinemas", allEntries = true)
     )
+    @Transactional
     public CinemaDTO updateCinema(CinemaDTO request, Long id) {
-        Cinema cinema = cinemaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phim với id: " + id));
-        Cinema cinemaUpdate = cinemaMapper.toEntity(request);
-        cinemaUpdate.setId(id);
-        cinemaUpdate.setRooms(cinema.getRooms());
-        Cinema saved = cinemaRepository.save(cinemaUpdate);
+        Cinema cinema = cinemaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy rạp chiếu phim với id: " + id));
+        cinema.setName(request.getName());
+        cinema.setAddress(request.getAddress());
+        cinema.setCity(request.getCity());
+        cinema.setPhoneNumber(request.getPhoneNumber());
+        Cinema saved = cinemaRepository.save(cinema);
         return cinemaMapper.toDTO(saved);
     }
 
@@ -66,10 +72,11 @@ public class CinemaServiceImpl implements CinemaService {
             @CacheEvict(value = "cinema_detail", key = "#id"),
             @CacheEvict(value = "cinemas", allEntries = true)
     })
+    @Transactional
     public void deleteCinema(Long id) {
         Cinema cinema = cinemaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy rạp chiếu phim có id: " + id));
         if(!cinema.getRooms().isEmpty()) {
-            throw new BadRequestException("Không được xóa vì vẫn còn room");
+            throw new ResourceInUseException("Không được xóa vì vẫn còn room");
         }
         cinemaRepository.deleteById(id);
     }
