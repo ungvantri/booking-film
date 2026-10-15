@@ -3,6 +3,7 @@ package com.example.booking_film.controller;
 import com.example.booking_film.dto.response.ApiResponse;
 import com.example.booking_film.dto.response.GenreDTO;
 import com.example.booking_film.service.GenreService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,22 +26,22 @@ public class GenreController {
     }
 
     @PostMapping
-    public ApiResponse<GenreDTO> createGenre(@RequestBody GenreDTO request) {
-        genreService.createGenre(request);
+    public ApiResponse<GenreDTO> createGenre(@Valid @RequestBody GenreDTO request) {
+        GenreDTO genreDTO = genreService.createGenre(request);
         return ApiResponse.<GenreDTO>builder()
                 .success(true)
                 .message("Tạo thể loại mới thành công")
-                .data(request)
+                .data(genreDTO)
                 .build();
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<GenreDTO> updateGenre(@PathVariable Long id, @RequestBody GenreDTO request) {
-        genreService.updateGenre(id, request);
+    public ApiResponse<GenreDTO> updateGenre(@PathVariable Long id, @Valid @RequestBody GenreDTO request) {
+        GenreDTO genreDTO = genreService.updateGenre(id, request);
         return ApiResponse.<GenreDTO>builder()
                 .success(true)
                 .message("Cập nhật thể loại thành công")
-                .data(request)
+                .data(genreDTO)
                 .build();
     }
 
