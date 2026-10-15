@@ -5,12 +5,14 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @NoArgsConstructor
 @Getter
 @Setter
 @Entity
 @Table(name = "seats")
+@BatchSize(size = 20)
 public class Seat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

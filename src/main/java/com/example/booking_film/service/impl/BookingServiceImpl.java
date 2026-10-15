@@ -244,19 +244,20 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public PageResponse<BookingResponse> getAllBookings(String email, BookingStatus status, Long userId, LocalDate date, int page, int size) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
-        Pageable pageable = PageRequest.of(page, size);
+        if (user.getRole() != Role.ADMIN && user.getRole() != Role.STAFF) {
+            throw new ForbiddenException("Không có quyền truy cập");
+        }
+        Sort sort = Sort.by("bookingTime").descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
         LocalDateTime start = date != null ? date.atStartOfDay() : null;
         LocalDateTime end = date != null ? date.plusDays(1).atStartOfDay() : null;
         Page<Booking> pages = bookingRepository.findByFilter(status, userId, start, end, pageable);
-        if (!user.getRole().equals(Role.ADMIN) && !user.getRole().equals(Role.STAFF)) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
         List<BookingResponse> bookingResponses = new ArrayList<>();
         for (Booking booking : pages.getContent()) {
             BookingResponse bookingResponse = bookingMapper.toDTO(booking);
             bookingResponse.setShowtime(showtimeMapper.toDto(booking.getShowtime()));
             bookingResponse.setMovie(movieMapper.toDto(booking.getShowtime().getMovie()));
-            bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(item -> item.getSeat()).toList()));
+            bookingResponse.setSeats(seatMapper.toDTO(booking.getBookingSeats().stream().map(BookingSeat::getSeat).toList()));
             bookingResponses.add(bookingResponse);
         }
         return PageResponse.<BookingResponse>builder()
