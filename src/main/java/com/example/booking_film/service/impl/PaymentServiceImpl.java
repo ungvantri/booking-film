@@ -29,6 +29,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 
@@ -108,7 +109,8 @@ public class PaymentServiceImpl implements PaymentService {
         params.put("vnp_CreateDate", createDate);
 
         LocalDateTime expireTime = booking.getBookingTime().plusMinutes(15);
-        String expireDate = new SimpleDateFormat("yyyyMMddHHmmss").format(expireTime);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String expireDate = expireTime.format(formatter);
         params.put("vnp_ExpireDate", expireDate);
 
         StringBuilder hashData = new StringBuilder();
@@ -202,7 +204,8 @@ public class PaymentServiceImpl implements PaymentService {
         }
         String requestId = UUID.randomUUID().toString();
         String createDate = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-        String transactionDate = new SimpleDateFormat("yyyyMMddHHmmss").format(payment.getPaidAt());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String transactionDate = payment.getPaidAt().format(formatter);
         BigDecimal amount = payment.getAmount().multiply(BigDecimal.valueOf(100));
         String transactionNo = "";
         String hashData = String.join("|",
