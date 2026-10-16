@@ -22,6 +22,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
@@ -75,9 +76,15 @@ public class PaymentServiceImpl implements PaymentService {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Override
+    @Transactional
     public PaymentResponse createPayment(String email, PaymentRequest request, String ipAddress) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         Booking booking = bookingRepository.findById(request.getBookingId()).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thanh toán có id:" + request.getBookingId()));
+        boolean isOwner = booking.getUser().getId().equals(user.getId());
+        boolean isStaffOrAdmin = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
+        if (!isOwner && !isStaffOrAdmin) {
+            throw new ForbiddenException("Không có quyền thanh toán booking này");
+        }
         Payment payment = Payment.builder()
                 .booking(booking)
                 .amount(booking.getTotalAmount())
@@ -86,12 +93,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
         booking.setPayment(payment);
         bookingRepository.save(booking);
-
-        boolean isOwner = booking.getUser().getId().equals(user.getId());
-        boolean isStaffOrAdmin = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
-        if (!isOwner && !isStaffOrAdmin) {
-            throw new ForbiddenException("Không có quyền thanh toán booking này");
-        }
+        
         Map<String, String> params = new TreeMap<>();
         params.put("vnp_Version", vnp_Version);
         params.put("vnp_Command", vnp_Command);

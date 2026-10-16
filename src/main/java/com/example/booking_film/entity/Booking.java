@@ -45,6 +45,6 @@ public class Booking {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.PERSIST, orphanRemoval = true)
     List<BookingSeat> bookingSeats;
 
-    @OneToOne(mappedBy = "booking")
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.MERGE)
     private Payment payment;
 }
