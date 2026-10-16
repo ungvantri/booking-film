@@ -1,6 +1,7 @@
 package com.example.booking_film.service.impl;
 
 import com.example.booking_film.customexception.BadRequestException;
+import com.example.booking_film.customexception.ConflictException;
 import com.example.booking_film.customexception.ForbiddenException;
 import com.example.booking_film.customexception.ResourceNotFoundException;
 import com.example.booking_film.dto.request.PaymentRequest;
@@ -84,6 +85,9 @@ public class PaymentServiceImpl implements PaymentService {
         boolean isStaffOrAdmin = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
         if (!isOwner && !isStaffOrAdmin) {
             throw new ForbiddenException("Không có quyền thanh toán booking này");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new ConflictException("Đơn đặt vé không ở trạng thái chờ thanh toán");
         }
         Payment payment = Payment.builder()
                 .booking(booking)
