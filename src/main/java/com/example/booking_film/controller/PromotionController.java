@@ -3,6 +3,7 @@ package com.example.booking_film.controller;
 import com.example.booking_film.dto.response.ApiResponse;
 import com.example.booking_film.dto.response.PromotionDTO;
 import com.example.booking_film.service.PromotionService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,7 +46,7 @@ public class PromotionController {
     }
 
     @PostMapping
-    public ApiResponse<PromotionDTO> createPromotion(@RequestBody PromotionDTO request) {
+    public ApiResponse<PromotionDTO> createPromotion(@Valid @RequestBody PromotionDTO request) {
         PromotionDTO promotionDTO = promotionService.createPromotion(request);
         return ApiResponse.<PromotionDTO>builder()
                 .success(true)
@@ -55,7 +56,7 @@ public class PromotionController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<PromotionDTO> updatePromotion(@PathVariable Long id, @RequestBody PromotionDTO request) {
+    public ApiResponse<PromotionDTO> updatePromotion(@PathVariable Long id, @Valid @RequestBody PromotionDTO request) {
         PromotionDTO promotionDTO = promotionService.updatePromotion(id, request);
         return ApiResponse.<PromotionDTO>builder()
                 .success(true)
