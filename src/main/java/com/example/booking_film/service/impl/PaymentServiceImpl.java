@@ -151,11 +151,14 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public void vnpayCallback(Map<String, String> params) {
-        String vnp_SecureHash = params.get("vnp_SecureHash");
-        params.remove("vnp_SecureHash");
+        Map<String, String> sortedParams = new TreeMap<>(params);
+        String vnp_SecureHash = sortedParams.get("vnp_SecureHash");
+        sortedParams.remove("vnp_SecureHash");
+        sortedParams.remove("vnp_SecureHashType");
         StringBuilder hashData = new StringBuilder();
-        for (Map.Entry<String, String> entry : params.entrySet()) {
+        for (Map.Entry<String, String> entry : sortedParams.entrySet()) {
             String key = entry.getKey();
             String rawValue = entry.getValue();
             hashData.append(key).append('=').append(rawValue).append('&');
@@ -195,6 +198,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public void refundPayment(Long id, String email, String ipAddress) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         if (!(user.getRole() == Role.ADMIN)) {
@@ -204,12 +208,15 @@ public class PaymentServiceImpl implements PaymentService {
         if (payment.getStatus() == PaymentStatus.REFUNDED) {
             throw new BadRequestException("Khoản thanh toán này đã được hoàn trả từ trước!");
         }
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new BadRequestException("Chỉ có thể hoàn tiền cho giao dịch đã thanh toán thành công!");
+        }
         String requestId = UUID.randomUUID().toString();
         String createDate = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
         String transactionDate = payment.getPaidAt().format(formatter);
         BigDecimal amount = payment.getAmount().multiply(BigDecimal.valueOf(100));
-        String transactionNo = "";
+        String transactionNo = payment.getTransactionCode();
         String hashData = String.join("|",
                 requestId,
                 vnp_Version,
@@ -250,5 +257,52 @@ public class PaymentServiceImpl implements PaymentService {
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, String>>() {
                 });
+        if (response == null) {
+            throw new BadRequestException("Không nhận được phản hồi từ cổng thanh toán VNPay!");
+        }
+        String vnp_SecureHash = response.get("vnp_SecureHash");
+
+        String responseHashData = String.join("|",
+                response.getOrDefault("vnp_ResponseId", ""),
+                response.getOrDefault("vnp_Command", ""),
+                response.getOrDefault("vnp_ResponseCode", ""),
+                response.getOrDefault("vnp_Message", ""),
+                response.getOrDefault("vnp_TmnCode", ""),
+                response.getOrDefault("vnp_TxnRef", ""),
+                response.getOrDefault("vnp_Amount", ""),
+                response.getOrDefault("vnp_BankCode", ""),
+                response.getOrDefault("vnp_PayDate", ""),
+                response.getOrDefault("vnp_TransactionNo", ""),
+                response.getOrDefault("vnp_TransactionType", ""),
+                response.getOrDefault("vnp_TransactionStatus", ""),
+                response.getOrDefault("vnp_OrderInfo", ""),
+                response.getOrDefault("vnp_CreateDate", ""),
+                response.getOrDefault("vnp_CreateBy", "")
+        );
+
+        String calculatedHash = HmacUtil.hmacSHA512(hashSecret, responseHashData);
+        if (!calculatedHash.equalsIgnoreCase(vnp_SecureHash)) {
+            throw new BadRequestException("Chữ ký phản hồi từ VNPay không hợp lệ! Dữ liệu có thể bị can thiệp.");
+        }
+
+        String responseCode = response.get("vnp_ResponseCode");
+        String transactionStatus = response.get("vnp_TransactionStatus");
+        String message = response.get("vnp_Message");
+        if (!"00".equals(responseCode) || (!"00".equals(transactionStatus))) {
+            throw new BadRequestException("Hoàn tiền thất bại từ VNPay: " + (message != null ? message : "Mã lỗi " + responseCode));
+        }
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        paymentRepository.save(payment);
+        Booking booking = payment.getBooking();
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+        List<Long> idSeats = booking.getBookingSeats().stream().map(item -> item.getSeat().getId()).toList();
+        Long idShowtime = booking.getShowtime().getId();
+        for(Long idSeat : idSeats) {
+            SeatShowtime seatShowtime = seatShowtimeRepository.findByShowtimeIdAndSeatId(idShowtime, idSeat).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ghế cho suất chiếu"));
+            seatShowtime.setStatus(SeatStatus.AVAILABLE);
+            seatShowtimeRepository.save(seatShowtime);
+        }
     }
 }
