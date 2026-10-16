@@ -190,13 +190,8 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingResponse getBookingByCode(String email, String bookingCode) {
+    public BookingResponse getBookingByCode(String bookingCode) {
         Booking booking = bookingRepository.findByBookingCode(bookingCode).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin vé có code là: " + bookingCode));
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
-        boolean isAdminOrStaff = user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
-        if (!isAdminOrStaff) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
         BookingResponse bookingResponse = bookingMapper.toDTO(booking);
         bookingResponse.setShowtime(showtimeMapper.toDto(booking.getShowtime()));
         bookingResponse.setMovie(movieMapper.toDto(booking.getShowtime().getMovie()));
@@ -242,11 +237,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public PageResponse<BookingResponse> getAllBookings(String email, BookingStatus status, Long userId, LocalDate date, int page, int size) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
-        if (user.getRole() != Role.ADMIN && user.getRole() != Role.STAFF) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
+    public PageResponse<BookingResponse> getAllBookings(BookingStatus status, Long userId, LocalDate date, int page, int size) {
         Sort sort = Sort.by("bookingTime").descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         LocalDateTime start = date != null ? date.atStartOfDay() : null;

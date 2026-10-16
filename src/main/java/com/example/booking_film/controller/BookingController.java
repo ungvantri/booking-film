@@ -59,9 +59,8 @@ public class BookingController {
     }
 
     @GetMapping("/code/{bookingCode}")
-    public ApiResponse<BookingResponse> getBookingByCode(@PathVariable String bookingCode, @AuthenticationPrincipal Jwt jwt) {
-        String email = jwt.getSubject();
-        BookingResponse bookingResponse = bookingService.getBookingByCode(email, bookingCode);
+    public ApiResponse<BookingResponse> getBookingByCode(@PathVariable String bookingCode) {
+        BookingResponse bookingResponse = bookingService.getBookingByCode(bookingCode);
         return ApiResponse.<BookingResponse>builder()
                 .success(true)
                 .message("Kiểm tra vé thành công")
@@ -85,11 +84,9 @@ public class BookingController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @AuthenticationPrincipal Jwt jwt
+            @RequestParam(defaultValue = "10") int size
     ) {
-        String email = jwt.getSubject();
-        PageResponse<BookingResponse> pages = bookingService.getAllBookings(email, status, userId, date, page, size);
+        PageResponse<BookingResponse> pages = bookingService.getAllBookings(status, userId, date, page, size);
         return ApiResponse.<PageResponse<BookingResponse>>builder()
                 .success(true)
                 .message("Lấy danh sách đặt vé thành công")
