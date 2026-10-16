@@ -108,6 +108,9 @@ public class BookingServiceImpl implements BookingService {
                 price = price.multiply(remainingPercent).divide(BigDecimal.valueOf(100));
             } else {
                 price = price.subtract(promotionDTO.getDiscountValue());
+                if (price.compareTo(BigDecimal.ZERO) < 0) {
+                    price = BigDecimal.ZERO;
+                }
             }
         }
 
