@@ -32,9 +32,8 @@ public class PaymentController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<PaymentResponse> getPaymentById(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
-        String email = jwt.getSubject();
-        PaymentResponse paymentResponse = paymentService.getPaymentById(email, id);
+    public ApiResponse<PaymentResponse> getPaymentById(@PathVariable Long id) {
+        PaymentResponse paymentResponse = paymentService.getPaymentById(id);
         return ApiResponse.<PaymentResponse>builder()
                 .success(true)
                 .message("Lấy thông tin thanh toán thành công")
@@ -52,10 +51,9 @@ public class PaymentController {
     }
 
     @PostMapping("/{id}/refund")
-    public ApiResponse<Void> refundPayment(@PathVariable Long id, HttpServletRequest req, @AuthenticationPrincipal Jwt jwt) {
+    public ApiResponse<Void> refundPayment(@PathVariable Long id, HttpServletRequest req) {
         String ipAddress = req.getRemoteAddr();
-        String email = jwt.getSubject();
-        paymentService.refundPayment(id, email, ipAddress);
+        paymentService.refundPayment(id, ipAddress);
         return ApiResponse.<Void>builder()
                 .success(true)
                 .message("Hoàn trả thành công")

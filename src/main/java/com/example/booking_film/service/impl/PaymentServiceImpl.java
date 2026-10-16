@@ -142,12 +142,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PaymentResponse getPaymentById(String email, Long id) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
-        if (!(user.getRole() == Role.ADMIN) && !(user.getRole() == Role.STAFF)) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
-        Payment payment = paymentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Khong tim thay khoan thanh toan"));
+    public PaymentResponse getPaymentById(Long id) {
+        Payment payment = paymentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khoản thanh toán"));
         return PaymentResponse.builder()
                 .status(payment.getStatus())
                 .transactionCode(payment.getTransactionCode())
@@ -187,6 +183,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setTransactionCode(params.get("vnp_TransactionNo"));
         payment.setPaidAt(LocalDateTime.now());
         Booking booking = payment.getBooking();
+        Long idShowtime = booking.getShowtime().getId();
         booking.setStatus(BookingStatus.PAID);
         List<Long> idBookingSeats = booking.getBookingSeats().stream().map(item -> item.getSeat().getId()).toList();
         for (Long seatId : idBookingSeats) {
@@ -195,6 +192,7 @@ public class PaymentServiceImpl implements PaymentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin ghế của xuất chiếu"));
             seatShowtime.setStatus(SeatStatus.BOOKED);
             seatShowtimeRepository.save(seatShowtime);
+            redisTemplate.delete("seat_hold:" + idShowtime + ":" + seatId);
         }
         redisTemplate.delete("booking_timeout:" + booking.getBookingCode());
         bookingRepository.save(booking);
@@ -203,11 +201,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void refundPayment(Long id, String email, String ipAddress) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
-        if (!(user.getRole() == Role.ADMIN)) {
-            throw new ForbiddenException("Không có quyền truy cập");
-        }
+    public void refundPayment(Long id, String ipAddress) {
         Payment payment = paymentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thanh toán có id:" + id));
         if (payment.getStatus() == PaymentStatus.REFUNDED) {
             throw new BadRequestException("Khoản thanh toán này đã được hoàn trả từ trước!");

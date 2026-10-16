@@ -8,9 +8,9 @@ import java.util.Map;
 public interface PaymentService {
     PaymentResponse createPayment(String email, PaymentRequest request, String ipAddress);
 
-    PaymentResponse getPaymentById(String email, Long id);
+    PaymentResponse getPaymentById(Long id);
 
     void vnpayCallback(Map<String, String> params);
 
-    void refundPayment(Long id, String email, String ipAddress);
+    void refundPayment(Long id, String ipAddress);
 }
