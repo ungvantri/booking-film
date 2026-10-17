@@ -17,4 +17,8 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
     Optional<Promotion> findByCode(String code);
 
     boolean existsByCode(String code);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Promotion p WHERE p.code = :code")
+    Optional<Promotion> findByCodeWithLock(@Param("code") String code);
 }

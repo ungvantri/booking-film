@@ -85,20 +85,32 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // Khóa ghế
-        List<SeatShowtime> lockedSeats = seatShowtimeRepository.findSeatsForBookingWithLock(request.getShowtimeId(), request.getSeatIds());
+        List<SeatShowtime> seats = seatShowtimeRepository.findSeatsForBooking(request.getShowtimeId(), request.getSeatIds());
 
         // Kiểm tra tính hợp lệ của ghế được đặt
-        if (lockedSeats.size() != request.getSeatIds().size()) {
+        if (seats.size() != request.getSeatIds().size()) {
             throw new ResourceNotFoundException("Một số ghế khách hàng đặt không hợp lệ trong suất chiếu này");
         }
-        for (SeatShowtime seatShowtime : lockedSeats) {
-            Object userId = redisTemplate.opsForValue().get("seat_hold:" + request.getShowtimeId() + ":" + seatShowtime.getSeat().getId());
-            if(userId != null) {
-                throw new ConflictException("Ghế có id: " + seatShowtime.getSeat().getId() + " đang bị tạm thời bị giữ bởi một khách hàng khác");
+
+        // dùng setIfAbsent để tránh ghi đè và có cơ chế rollback để đảm bảo tính atomic
+        List<Long> successfullyHeldSeats = new ArrayList<>();
+        try {
+            for (Long seatId : request.getSeatIds()) {
+                String redisKey = "seat_hold:" + request.getShowtimeId() + ":" + seatId;
+                Boolean isHeld = redisTemplate.opsForValue().setIfAbsent(redisKey, user.getId(), 900, TimeUnit.SECONDS);
+                if (!isHeld) {
+                    throw new ConflictException("Ghế có id: " + seatId + " vừa bị khách hàng khác giữ chỗ!");
+                }
+                successfullyHeldSeats.add(seatId);
             }
+        } catch (Exception e) {
+            for (Long rollbackSeatId : successfullyHeldSeats) {
+                redisTemplate.delete("seat_hold:" + request.getShowtimeId() + ":" + rollbackSeatId);
+            }
+            throw e;
         }
 
-        BigDecimal price = lockedSeats.stream()
+        BigDecimal price = seats.stream()
                 .map(SeatShowtime::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (promotionDTO != null) {
@@ -123,7 +135,7 @@ public class BookingServiceImpl implements BookingService {
                 .status(BookingStatus.PENDING)
                 .build();
 
-        List<BookingSeat> bookingSeats = lockedSeats.stream()
+        List<BookingSeat> bookingSeats = seats.stream()
                 .map(item -> BookingSeat.builder()
                         .booking(booking)
                         .seat(item.getSeat())
@@ -132,11 +144,6 @@ public class BookingServiceImpl implements BookingService {
                 .toList();
 
         booking.setBookingSeats(bookingSeats);
-
-        // Lưu các ghế tạm thời đang được hold trong 15 phút
-        for(Long id : request.getSeatIds()) {
-            redisTemplate.opsForValue().set("seat_hold:" + request.getShowtimeId() + ":" + id, user.getId(), 900, TimeUnit.SECONDS);
-        }
 
         redisTemplate.opsForValue().set("booking_timeout:" + booking.getBookingCode(), "1", 900, TimeUnit.SECONDS);
 
