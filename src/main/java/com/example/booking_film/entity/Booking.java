@@ -47,4 +47,8 @@ public class Booking {
 
     @OneToOne(mappedBy = "booking", cascade = CascadeType.MERGE)
     private Payment payment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promotion_id")
+    private Promotion promotion;
 }

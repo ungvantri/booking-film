@@ -4,6 +4,7 @@ import com.example.booking_film.entity.Promotion;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,7 +19,11 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
 
     boolean existsByCode(String code);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Promotion p WHERE p.code = :code")
-    Optional<Promotion> findByCodeWithLock(@Param("code") String code);
+    @Modifying
+    @Query("UPDATE Promotion p SET p.usedCount = p.usedCount - 1 WHERE p.id = :id AND p.usedCount > 0")
+    int decrementUsedCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE Promotion p SET p.usedCount = p.usedCount + 1 WHERE p.id = :id AND p.usedCount < p.usageLimit")
+    int incrementUsedCount(@Param("id") Long id);
 }

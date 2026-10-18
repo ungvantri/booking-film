@@ -7,7 +7,7 @@ import java.util.List;
 public interface PromotionService {
     List<PromotionDTO> getActivePromotions();
 
-    PromotionDTO validatePromotion(String code);
+    PromotionDTO applyPromotion(String code);
 
     List<PromotionDTO> getAllPromotions();
 
@@ -16,4 +16,8 @@ public interface PromotionService {
     PromotionDTO updatePromotion(Long id, PromotionDTO request);
 
     void deletePromotion(Long id);
+
+    void incrementUsedCount(Long id, Long usageLimit);
+
+    void decrementUsedCount(Long id);
 }

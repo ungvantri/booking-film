@@ -11,11 +11,9 @@ import com.example.booking_film.enums.BookingStatus;
 import com.example.booking_film.enums.PaymentStatus;
 import com.example.booking_film.enums.Role;
 import com.example.booking_film.enums.SeatStatus;
-import com.example.booking_film.repository.BookingRepository;
-import com.example.booking_film.repository.PaymentRepository;
-import com.example.booking_film.repository.SeatShowtimeRepository;
-import com.example.booking_film.repository.UserRepository;
+import com.example.booking_film.repository.*;
 import com.example.booking_film.service.PaymentService;
+import com.example.booking_film.service.PromotionService;
 import com.example.booking_film.util.HmacUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +70,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private SeatShowtimeRepository seatShowtimeRepository;
+
+    @Autowired
+    private PromotionService promotionService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -171,18 +172,38 @@ public class PaymentServiceImpl implements PaymentService {
         if (!check) {
             throw new BadRequestException("Chữ ký không hợp lệ");
         }
+        Booking booking = bookingRepository.findById(Long.valueOf(params.get("vnp_TxnRef"))).orElseThrow(() -> new ResourceNotFoundException("Không tồn tại thông tin đặt hàng"));
+        Payment payment = booking.getPayment();
         if (!("00".equals(responseCode)) || !("00".equals(transactionStatus))) {
-            throw new BadRequestException("Thanh toán thất bại!");
-        }
-        Booking booking_param = bookingRepository.findById(Long.valueOf(params.get("vnp_TxnRef"))).orElseThrow(() -> new ResourceNotFoundException("Không tồn tại thông tin đặt hàng"));
-        Payment payment = booking_param.getPayment();
-        if (payment.getStatus() == PaymentStatus.SUCCESS || booking_param.getStatus() == BookingStatus.PAID) {
+            if (payment != null) {
+                payment.setStatus(PaymentStatus.FAILED);
+                paymentRepository.save(payment);
+            }
+
+            if (booking.getPromotion() != null) {
+                Promotion promotion = booking.getPromotion();
+                promotionService.decrementUsedCount(booking.getPromotion().getId());
+                promotion.setUsedCount(promotion.getUsedCount() - 1);
+            }
+
+            Long idShowtime = booking.getShowtime().getId();
+            for (BookingSeat bookingSeat : booking.getBookingSeats()) {
+                redisTemplate.delete("seat_hold:" + idShowtime + ":" + bookingSeat.getSeat().getId());
+            }
+            redisTemplate.delete("booking_timeout:" + booking.getBookingCode());
+
+            booking.setStatus(BookingStatus.CANCELLED);
+            bookingRepository.save(booking);
             return;
         }
+
+        if (payment.getStatus() == PaymentStatus.SUCCESS || booking.getStatus() == BookingStatus.PAID) {
+            return;
+        }
+
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setTransactionCode(params.get("vnp_TransactionNo"));
         payment.setPaidAt(LocalDateTime.now());
-        Booking booking = payment.getBooking();
         Long idShowtime = booking.getShowtime().getId();
         booking.setStatus(BookingStatus.PAID);
         List<Long> idBookingSeats = booking.getBookingSeats().stream().map(item -> item.getSeat().getId()).toList();
@@ -293,6 +314,12 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.REFUNDED);
         paymentRepository.save(payment);
         Booking booking = payment.getBooking();
+        if(booking.getPromotion() != null) {
+            Promotion promotion = booking.getPromotion();
+            promotionService.decrementUsedCount(promotion.getId());
+            promotion.setUsedCount(promotion.getUsedCount() - 1);
+            booking.setPromotion(promotion);
+        }
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
         List<Long> idSeats = booking.getBookingSeats().stream().map(item -> item.getSeat().getId()).toList();

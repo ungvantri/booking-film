@@ -25,9 +25,9 @@ public class PromotionController {
                 .build();
     }
 
-    @PostMapping("/validate")
-    public ApiResponse<PromotionDTO> validatePromotion(@RequestParam String code) {
-        PromotionDTO promotionDTO = promotionService.validatePromotion(code);
+    @PostMapping("/apply")
+    public ApiResponse<PromotionDTO> applyPromotion(@RequestParam String code) {
+        PromotionDTO promotionDTO = promotionService.applyPromotion(code);
         return ApiResponse.<PromotionDTO>builder()
                 .success(true)
                 .message("Khuyến mãi hợp lệ")

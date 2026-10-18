@@ -35,7 +35,7 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public PromotionDTO validatePromotion(String code) {
+    public PromotionDTO applyPromotion(String code) {
         Promotion promotion = promotionRepository.findByCode(code).orElseThrow(() -> new ResourceNotFoundException("Khong tim thay khuyen mai co ma code:" + code));
         if(!promotion.getIsActive()) {
             throw new BadRequestException("Mã khuyến mãi " + code + " chưa được kích hoạt");
@@ -48,6 +48,8 @@ public class PromotionServiceImpl implements PromotionService {
         if(promotion.getUsageLimit() != null && used >= promotion.getUsageLimit()) {
             throw new BadRequestException("Mã khuyến mãi " + code + " đã hết lượt sử dụng");
         }
+        incrementUsedCount(promotion.getId(), Long.valueOf(promotion.getUsageLimit()));
+        promotion.setUsedCount(used + 1);
         return promotionMapper.toDTO(promotion);
     }
 
@@ -101,6 +103,22 @@ public class PromotionServiceImpl implements PromotionService {
             throw new ResourceNotFoundException("Không tìm thấy mã khuyến mãi có id: " + id);
         }
         promotionRepository.deleteById(id);
+    }
+
+    @Override
+    public void incrementUsedCount(Long id, Long usageLimit) {
+        int row = promotionRepository.incrementUsedCount(id);
+        if (row == 0) {
+            throw new BadRequestException("Mã khuyến mãi vừa hết lượt sử dụng!");
+        }
+    }
+
+    @Override
+    public void decrementUsedCount(Long id) {
+        int row = promotionRepository.decrementUsedCount(id);
+        if (row == 0) {
+            throw new BadRequestException("Hoàn trả mã khuyến mãi không thành công!");
+        }
     }
 
     private void validatePromotionDatesAndDiscount(PromotionDTO request) {

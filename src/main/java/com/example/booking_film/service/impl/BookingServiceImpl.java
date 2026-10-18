@@ -1,5 +1,6 @@
 package com.example.booking_film.service.impl;
 
+import com.example.booking_film.customexception.BadRequestException;
 import com.example.booking_film.customexception.ConflictException;
 import com.example.booking_film.customexception.ForbiddenException;
 import com.example.booking_film.customexception.ResourceNotFoundException;
@@ -64,6 +65,9 @@ public class BookingServiceImpl implements BookingService {
     private SeatMapper seatMapper;
 
     @Autowired
+    private PromotionRepository promotionRepository;
+
+    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
     @Override
@@ -72,8 +76,12 @@ public class BookingServiceImpl implements BookingService {
         // Lấy thông tin người dùng
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
-        // Kiểm tra tính hợp lệ của voucher
-        PromotionDTO promotionDTO = request.getPromotionCode() != null ? promotionService.validatePromotion(request.getPromotionCode()) : null;
+        Promotion promotion = null;
+        PromotionDTO promotionDTO = null;
+        if (request.getPromotionCode() != null) {
+            promotionDTO = promotionService.applyPromotion(request.getPromotionCode());
+            promotion = promotionRepository.findByCode(request.getPromotionCode()).orElse(null);
+        }
 
         // Kiểm tra lịch chiếu có phù hợp không
         Showtime showtime = showtimeRepository.findById(request.getShowtimeId()).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy suất chiếu với id: " + request.getShowtimeId()));
@@ -133,6 +141,7 @@ public class BookingServiceImpl implements BookingService {
                 .bookingTime(LocalDateTime.now())
                 .totalAmount(price)
                 .status(BookingStatus.PENDING)
+                .promotion(promotion)
                 .build();
 
         List<BookingSeat> bookingSeats = seats.stream()
@@ -232,6 +241,11 @@ public class BookingServiceImpl implements BookingService {
             }
         } else {
             throw new ForbiddenException("Bạn không có quyền hủy vé này!");
+        }
+        if (booking.getPromotion() != null) {
+            Promotion promotion = booking.getPromotion();
+            promotionService.decrementUsedCount(booking.getPromotion().getId());
+            promotion.setUsedCount(promotion.getUsedCount() - 1);
         }
         Long idShowtime = booking.getShowtime().getId();
         for (BookingSeat bookingSeat : booking.getBookingSeats()) {
