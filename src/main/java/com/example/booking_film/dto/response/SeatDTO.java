@@ -20,5 +20,8 @@ public class SeatDTO {
 
     @NotNull(message = "Loại ghế không được để trống")
     private SeatType type;
+
     private Long roomId;
+    private SeatStatus status;
+    private BigDecimal price;
 }

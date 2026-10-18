@@ -20,5 +20,11 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
             """)
     Page<Showtime> filter(@Param("movieId") Long movieId, @Param("cinemaId") Long cinemaId, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay, Pageable pageable);
 
-    List<Showtime> findByRoomId(Long roomId);
+    @Query("""
+            SELECT COUNT(s) > 0 FROM Showtime s
+            WHERE s.room.id = :roomId
+            AND s.status != com.example.booking_film.enums.ShowtimeStatus.CANCELLED
+            AND (s.startTime < :endTime AND s.endTime > :startTime)
+            """)
+    boolean existsOverlappingShowtime(@Param("roomId") Long roomId, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
