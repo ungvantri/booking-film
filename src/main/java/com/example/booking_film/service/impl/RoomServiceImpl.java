@@ -1,5 +1,6 @@
 package com.example.booking_film.service.impl;
 
+import com.example.booking_film.customexception.BadRequestException;
 import com.example.booking_film.customexception.ResourceInUseException;
 import com.example.booking_film.customexception.ResourceNotFoundException;
 import com.example.booking_film.dto.response.RoomDTO;
@@ -10,6 +11,7 @@ import com.example.booking_film.enums.SeatType;
 import com.example.booking_film.mapper.RoomMapper;
 import com.example.booking_film.repository.CinemaRepository;
 import com.example.booking_film.repository.RoomRepository;
+import com.example.booking_film.repository.SeatRepository;
 import com.example.booking_film.service.RoomService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -17,6 +19,7 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +31,9 @@ public class RoomServiceImpl implements RoomService {
 
     @Autowired
     private RoomMapper roomMapper;
+
+    @Autowired
+    private SeatRepository seatRepository;
 
     @Autowired
     private CinemaRepository cinemaRepository;
@@ -50,10 +56,18 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     @CacheEvict(value = "cinema_rooms", key = "#cinemaId")
+    @Transactional
     public RoomDTO createRoom(Long cinemaId, RoomDTO request) {
         Cinema cinema = cinemaRepository.findById(cinemaId).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy rạp phim có id " + cinemaId));
+        if (roomRepository.existsByNameAndCinemaId(request.getName(), cinemaId)) {
+            throw new BadRequestException("Phòng chiếu '" + request.getName() + "' đã tồn tại trong rạp này");
+        }
         Room room = roomMapper.toEntity(request);
+        room.setId(null);
         room.setCinema(cinema);
+        if (room.getTotalSeats() == null) {
+            room.setTotalSeats(0);
+        }
         Room saved = roomRepository.save(room);
         return roomMapper.toDTO(saved);
     }
@@ -63,6 +77,7 @@ public class RoomServiceImpl implements RoomService {
             put = @CachePut(value = "room_detail", key = "#id"),
             evict = @CacheEvict(value = "cinema_rooms", allEntries = true)
     )
+    @Transactional
     public RoomDTO updateRoom(Long id, RoomDTO request) {
         Room room = roomRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phòng có id " + id));
         Cinema cinema = cinemaRepository.findById(request.getCinemaId()).orElseThrow(() -> new ResourceNotFoundException("Thông tin cập nhật không hợp lệ"));
@@ -80,6 +95,7 @@ public class RoomServiceImpl implements RoomService {
             @CacheEvict(value = "room_detail", key = "#id"),
             @CacheEvict(value = "cinema_rooms", allEntries = true)
     })
+    @Transactional
     public void deleteRoom(Long id) {
         Room room = roomRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Khong tim thay phong voi id: " + id));
         if (room.getShowtimes() != null && !room.getShowtimes().isEmpty()) {
@@ -93,7 +109,17 @@ public class RoomServiceImpl implements RoomService {
             @CacheEvict(value = "room_detail", key = "#id"),
             @CacheEvict(value = "cinema_rooms", allEntries = true)
     })
+    @Transactional
     public void generateSeats(Long id, int totalRows, int totalColumns) {
+        if (totalRows <= 0 || totalRows > 26) {
+            throw new BadRequestException("Số hàng ghế phải nằm trong khoảng từ 1 đến 26 (tương ứng A-Z)");
+        }
+        if (totalColumns <= 0 || totalColumns > 50) {
+            throw new BadRequestException("Số cột ghế phải nằm trong khoảng từ 1 đến 50");
+        }
+        if (seatRepository.existsByRoomId(id)) {
+            throw new BadRequestException("Phòng chiếu này đã được tạo sơ đồ ghế rồi, không thể tạo thêm");
+        }
         Room room = roomRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phòng có id: " + id));
         List<Seat> seats = new ArrayList<>();
         for(int i = 0; i < totalRows; i++) {

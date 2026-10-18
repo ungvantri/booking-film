@@ -34,7 +34,7 @@ public class Room {
     @JoinColumn(name = "cinema_id", nullable = false)
     private Cinema cinema;
 
-    @OneToMany(mappedBy = "room", cascade = CascadeType.MERGE)
+    @OneToMany(mappedBy = "room", cascade = {CascadeType.MERGE, CascadeType.REMOVE})
     private List<Seat> seats;
 
     @OneToMany(mappedBy = "room")
