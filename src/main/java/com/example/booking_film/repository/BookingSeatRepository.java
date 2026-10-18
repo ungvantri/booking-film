@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface BookingSeatRepository extends JpaRepository<BookingSeat, Long> {
-    List<BookingSeat> findBySeatId(Long seatId);
+    boolean existsBySeatId(Long seatId);
 }

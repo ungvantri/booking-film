@@ -5,6 +5,7 @@ import com.example.booking_film.dto.response.ApiResponse;
 import com.example.booking_film.dto.response.SeatDTO;
 import com.example.booking_film.service.SeatRealtimeService;
 import com.example.booking_film.service.SeatService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,7 @@ public class SeatController {
     }
 
     @PutMapping("/api/seats/{id}")
-    public ApiResponse<SeatDTO> updateSeat(@PathVariable Long id, @RequestBody SeatDTO request) {
+    public ApiResponse<SeatDTO> updateSeat(@PathVariable Long id, @Valid @RequestBody SeatDTO request) {
         SeatDTO seat = seatService.updateSeat(id, request);
         return ApiResponse.<SeatDTO>builder()
                 .success(true)
@@ -48,7 +49,7 @@ public class SeatController {
     }
 
     @PostMapping("/api/seats/hold")
-    public ApiResponse<Void> holdSeat(@RequestBody SeatEventDTO request) {
+    public ApiResponse<Void> holdSeat(@Valid @RequestBody SeatEventDTO request) {
         seatRealtimeService.broadcastSeatUpdate(request);
         return ApiResponse.<Void>builder()
                 .success(true)

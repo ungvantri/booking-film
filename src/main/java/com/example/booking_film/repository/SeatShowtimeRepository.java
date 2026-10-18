@@ -12,12 +12,12 @@ import java.util.Optional;
 
 
 public interface SeatShowtimeRepository extends JpaRepository<SeatShowtime, Long> {
-    List<SeatShowtime> findBySeatId(Long seatId);
-
     List<SeatShowtime> findByShowtimeId(Long showtimeId);
 
     Optional<SeatShowtime> findByShowtimeIdAndSeatId(Long showtimeId, Long id);
 
     @Query("SELECT ss FROM SeatShowtime ss WHERE ss.showtime.id = :showtimeId AND ss.seat.id IN :seatIds AND ss.status = SeatStatus.AVAILABLE")
     List<SeatShowtime> findSeatsForBooking(@Param("showtimeId") Long showtimeId, @Param("seatIds") List<Long> seatIds);
+
+    boolean existsBySeatId(Long seatId);
 }
