@@ -243,9 +243,7 @@ public class BookingServiceImpl implements BookingService {
             throw new ForbiddenException("Bạn không có quyền hủy vé này!");
         }
         if (booking.getPromotion() != null) {
-            Promotion promotion = booking.getPromotion();
             promotionService.decrementUsedCount(booking.getPromotion().getId());
-            promotion.setUsedCount(promotion.getUsedCount() - 1);
         }
         Long idShowtime = booking.getShowtime().getId();
         for (BookingSeat bookingSeat : booking.getBookingSeats()) {

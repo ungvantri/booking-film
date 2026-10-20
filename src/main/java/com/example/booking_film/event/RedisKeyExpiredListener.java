@@ -40,7 +40,6 @@ public class RedisKeyExpiredListener extends KeyExpirationEventMessageListener {
         if (booking.getPromotion() != null) {
             Promotion promotion = booking.getPromotion();
             promotionService.decrementUsedCount(promotion.getId());
-            promotion.setUsedCount(promotion.getUsedCount() - 1);
         }
         booking.setStatus(BookingStatus.EXPIRED);
         bookingRepository.save(booking);

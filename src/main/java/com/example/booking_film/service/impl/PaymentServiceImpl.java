@@ -185,9 +185,7 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             if (booking.getPromotion() != null) {
-                Promotion promotion = booking.getPromotion();
                 promotionService.decrementUsedCount(booking.getPromotion().getId());
-                promotion.setUsedCount(promotion.getUsedCount() - 1);
             }
 
             Long idShowtime = booking.getShowtime().getId();
@@ -322,8 +320,6 @@ public class PaymentServiceImpl implements PaymentService {
         if(booking.getPromotion() != null) {
             Promotion promotion = booking.getPromotion();
             promotionService.decrementUsedCount(promotion.getId());
-            promotion.setUsedCount(promotion.getUsedCount() - 1);
-            booking.setPromotion(promotion);
         }
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
