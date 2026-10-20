@@ -12,6 +12,7 @@ import com.example.booking_film.enums.PaymentStatus;
 import com.example.booking_film.enums.Role;
 import com.example.booking_film.enums.SeatStatus;
 import com.example.booking_film.repository.*;
+import com.example.booking_film.service.EmailService;
 import com.example.booking_film.service.PaymentService;
 import com.example.booking_film.service.PromotionService;
 import com.example.booking_film.util.HmacUtil;
@@ -73,6 +74,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private PromotionService promotionService;
+
+    @Autowired
+    private EmailService emailService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -218,6 +222,7 @@ public class PaymentServiceImpl implements PaymentService {
         redisTemplate.delete("booking_timeout:" + booking.getBookingCode());
         bookingRepository.save(booking);
         paymentRepository.save(payment);
+        emailService.sendBookingSuccessEmail(booking.getId());
     }
 
     @Override

@@ -32,4 +32,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "WHERE (b.status = :status OR :status IS NULL) AND (b.user.id = :userId OR :userId IS NULL) AND (:start IS NULL OR b.bookingTime >= :start) AND (:end IS NULL OR b.bookingTime < :end)",
             countQuery = "SELECT COUNT(b) FROM Booking b WHERE (b.status = :status OR :status IS NULL) AND (b.user.id = :userId OR :userId IS NULL) AND (:start IS NULL OR b.bookingTime >= :start) AND (:end IS NULL OR b.bookingTime < :end)")
     Page<Booking> findByFilter(@Param("status") BookingStatus status, @Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
+
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.user u
+            JOIN FETCH b.showtime s
+            JOIN FETCH s.movie m
+            JOIN FETCH s.room r
+            JOIN FETCH r.cinema c
+            JOIN FETCH b.bookingSeats bs
+            JOIN FETCH bs.seat seat
+            WHERE b.id = :id
+            """)
+    Optional<Booking> findByIdWithDetails(@Param("id") Long id);
 }
