@@ -63,6 +63,13 @@ Dự án không dừng lại ở mức ứng dụng CRUD cơ bản mà tập tru
 - Gửi email xác nhận đặt vé định dạng HTML giàu nội dung qua `@Async` (Thread Pool riêng), không làm nghẽn luồng xử lý thanh toán chính.
 - Tích hợp **Resilience4j `@Retry`**: Tự động thử lại tối đa 3 lần với khoảng cách 3 giây khi gặp sự cố mạng tạm thời với SMTP server, đi kèm phương thức `fallback` an toàn.
 
+### 6. Đảm Bảo Tính Lũy Đẳng & Chống Xử Lý Trùng Lặp (Idempotency & State Guard)
+- **Vấn đề:** Trong môi trường mạng và hệ thống phân tán, các tín hiệu Webhook từ bên thứ ba (VNPay IPN/Callback) hoặc thao tác từ người dùng (như click đúp hủy vé, hoàn tiền) có thể bị gửi lặp lại nhiều lần. Nếu không có cơ chế xử lý lũy đẳng, hệ thống dễ rơi vào tình trạng **Double-Processing** (xử lý hóa đơn nhiều lần, hoàn tiền trùng, spam email, hoặc trừ/cộng sai số lượt ưu đãi).
+- **Giải pháp:**
+  - **Idempotent Webhook Consumer:** Áp dụng kỹ thuật kiểm tra trạng thái (*State Guard*) tại luồng tiếp nhận callback VNPay (`PaymentServiceImpl.vnpayCallback`). Nếu đơn vé đã ở trạng thái `PAID` hoặc thanh toán đã là `SUCCESS`, hệ thống lập tức bỏ qua và phản hồi ngay, đảm bảo không thực hiện lại các hiệu ứng phụ (side-effects) như cập nhật ghế hay gửi trùng email.
+  - **State Transition Guard:** Kiểm soát chặt chẽ máy trạng thái trước khi thực hiện các tác vụ nhạy cảm như hủy vé (`cancelBooking`) và hoàn tiền (`refundPayment`), chặn đứng các yêu cầu thao tác lặp lại trên vé hoặc khoản thanh toán đã hoàn tất xử lý.
+  - **Ràng Buộc Độc Nhất (Database Unique Constraint):** Áp dụng ràng buộc duy nhất `unique = true` cho quan hệ giữa `Payment` và `Booking`, ngăn chặn nguy cơ sinh nhiều bản ghi giao dịch cho cùng một đơn đặt vé.
+
 ---
 
 ## 🏗 KIẾN TRÚC HỆ THỐNG
@@ -358,6 +365,7 @@ docker compose up -d mysql redis
 3. **Mã hóa Một Chiều (One-way Hashing):** Toàn bộ mật khẩu người dùng được mã hóa bằng thuật toán `BCrypt` với salt ngẫu nhiên.
 4. **Bảo vệ Tính Toàn Vẹn Dữ Liệu Thanh Toán:** Kiểm tra và đối soát chữ ký số `HMAC-SHA512` hai chiều khi giao tiếp với cổng thanh toán VNPay, ngăn chặn hoàn toàn việc can thiệp thay đổi giá trị đơn hàng (Man-in-the-middle attack).
 5. **Chuẩn hóa Xử Lý Lỗi (Centralized Exception Handling):** Tích hợp [`GlobalExceptionHandler`](file:///d:/booking-film/src/main/java/com/example/booking_film/globalexceptionhandler/GlobalExceptionHandler.java) chặn toàn bộ ngoại lệ và trả về payload lỗi chuẩn, ngăn chặn rò rỉ stack trace ra môi trường bên ngoài.
+6. **Xử Lý Lũy Đẳng (Idempotency):** Áp dụng pattern *Idempotent Consumer* và *State Transition Guard* cho các giao dịch nhạy cảm (VNPay Callback, hủy vé, hoàn tiền), bảo vệ hệ thống tuyệt đối khỏi lỗi xử lý trùng lặp (Double-Processing) do network retry hoặc duplicate webhook events.
 
 ---
 
