@@ -1,0 +1,53 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy (mặc định lấy commit SHA)"
+        required: false
+        default: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose.yaml to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "docker-compose.yaml"
+          target: "~/booking-film/"
+
+      - name: Deploy new version via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd ~/booking-film
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+            if [ -z "$IMAGE_TAG" ]; then
+              IMAGE_TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+            fi
+            echo "Deploying with IMAGE_TAG: $IMAGE_TAG..."
+            export IMAGE_TAG
+            docker compose pull app
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            echo "Deployment completed successfully!"
