@@ -370,10 +370,10 @@ docker compose up -d mysql redis
 ---
 
 ## 👤 TÁC GIẢ & LIÊN HỆ
-- **Họ và tên:** Ứng Văn Trí
+- **Họ và tên:** Ung Văn Trí
 - **Email:** ungvantri91@gmail.com
-- **GitHub:** [@ungvantri91](https://github.com/ungvantri91)
-- **Dự án:** [Booking Film System](https://github.com/ungvantri91/booking-film)
+- **GitHub:** [@ungvantri](https://github.com/ungvantri)
+- **Dự án:** [Booking Film System](https://github.com/ungvantri/booking-film)
 
 ---
 *Dự án được xây dựng và duy trì với tiêu chuẩn kỹ thuật cao, sẵn sàng phục vụ thực tế.*
